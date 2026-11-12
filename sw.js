@@ -1,12 +1,12 @@
 /* No Regrets offline cache. Bump VERSION whenever the app files change. */
-var VERSION='nr-v1';
+var VERSION='nr-v2';
 var CORE=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png','icon-maskable-512.png'];
 self.addEventListener('install',function(e){
   e.waitUntil(caches.open(VERSION).then(function(c){return c.addAll(CORE)}).then(function(){return self.skipWaiting()}));
 });
 self.addEventListener('activate',function(e){
   e.waitUntil(caches.keys().then(function(keys){
-    return Promise.all(keys.filter(function(k){return k!==VERSION}).map(function(k){return caches.delete(k)}));
+    return Promise.all(keys.filter(function(k){return k.indexOf('nr-')===0&&k!==VERSION}).map(function(k){return caches.delete(k)}));
   }).then(function(){return self.clients.claim()}));
 });
 self.addEventListener('fetch',function(e){
@@ -19,16 +19,16 @@ self.addEventListener('fetch',function(e){
     /* Fonts never change: cache first. */
     e.respondWith(caches.match(req).then(function(hit){
       return hit||fetch(req).then(function(res){
-        var copy=res.clone();caches.open(VERSION).then(function(c){c.put(req,copy)});return res;
+        if(res&&res.ok){var copy=res.clone();caches.open(VERSION).then(function(c){return c.put(req,copy)}).catch(function(){})}return res;
       });
     }));
     return;
   }
   /* App files: network first so updates arrive, cache when offline. */
   e.respondWith(fetch(req).then(function(res){
-    if(res&&res.ok){var copy=res.clone();caches.open(VERSION).then(function(c){c.put(req,copy)})}
+    if(res&&res.ok){var copy=res.clone();caches.open(VERSION).then(function(c){return c.put(req,copy)}).catch(function(){})}
     return res;
   }).catch(function(){
-    return caches.match(req,{ignoreSearch:true}).then(function(hit){return hit||caches.match('index.html')});
+    return caches.match(req,{ignoreSearch:true}).then(function(hit){return hit||(req.mode==='navigate'?caches.match('index.html'):Response.error())});
   }));
 });
