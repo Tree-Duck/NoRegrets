@@ -92,6 +92,8 @@ nav button.on{color:var(--mint)}
 input[type=text],select,textarea{font-family:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:44px;width:100%;min-width:0}
 select{width:auto}
 textarea{min-height:90px;font-size:13px}
+details#bonus summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:2.5px;color:var(--dim);text-transform:uppercase}
+span.chip{display:inline-flex;align-items:center}
 #toast{position:fixed;left:50%;top:18px;transform:translate(-50%,-24px);opacity:0;visibility:hidden;background:var(--mint);color:var(--bg);font-family:var(--display);font-weight:700;font-size:18px;padding:10px 18px;border-radius:12px;transition:transform .3s ease,opacity .3s ease,visibility .3s;z-index:5;max-width:90%;text-align:center}
 #toast.show{transform:translate(-50%,0);opacity:1;visibility:visible}
 .note{background:var(--panel2);border-radius:12px;padding:10px 12px;font-size:14px;color:var(--dim)}
@@ -143,7 +145,7 @@ function fresh(){
       {id:'q4',name:'Drums 15 min',stat:'drums'},
       {id:'q5',name:'Prep a lesson or post for class',stat:'teach'}
     ],
-    days:{},wins:{},timer:null};
+    days:{},wins:{},weeks:{},timer:null};
 }
 function has(o,k){return Object.prototype.hasOwnProperty.call(o,k)}
 var DATE_RE=/^\d{4}-\d\d-\d\d$/;
@@ -169,6 +171,18 @@ function migrate(o){
       if(e&&typeof e==='object'&&typeof e.s==='string'&&has(STATS,e.s))out.f.push({s:e.s,x:num(e.x),m:num(e.m)});
     });
     r.days[d]=out;
+  });
+  if(o.weeks&&typeof o.weeks==='object'&&!Array.isArray(o.weeks))Object.keys(o.weeks).forEach(function(w){
+    var x=o.weeks[w];if(!DATE_RE.test(w)||!x||typeof x!=='object')return;
+    var out={areas:[],extras:[]};
+    if(Array.isArray(x.areas))x.areas.forEach(function(a){if(typeof a==='string'&&has(STATS,a)&&out.areas.indexOf(a)<0&&out.areas.length<3)out.areas.push(a)});
+    if(out.areas.length&&out.areas.indexOf('ielts')<0){out.areas.unshift('ielts');out.areas=out.areas.slice(0,3)}
+    if(out.areas.length<2)out.areas=[];
+    if(Array.isArray(x.extras))x.extras.forEach(function(e){
+      if(e&&typeof e==='object'&&e.id!=null&&typeof e.stat==='string'&&has(STATS,e.stat)&&typeof e.date==='string'&&DATE_RE.test(e.date)&&out.extras.length<30)
+        out.extras.push({id:String(e.id).slice(0,40),name:String(e.name==null?'Extra activity':e.name).slice(0,60),stat:e.stat,until:e.until==='week'?'week':'today',date:e.date});
+    });
+    r.weeks[w]=out;
   });
   if(o.wins&&typeof o.wins==='object'&&!Array.isArray(o.wins))Object.keys(o.wins).forEach(function(w){
     if(DATE_RE.test(w)&&num(o.wins[w]))r.wins[w]=num(o.wins[w]);
@@ -205,12 +219,21 @@ function statXp(){
 }
 function levelInfo(xp){var L=1,need=100;while(xp>=need){xp-=need;L++;need=100+50*(L-1)}return {L:L,cur:xp,need:need}}
 
+function week(){var w=mondayOf(today());if(!S.weeks[w])S.weeks[w]={areas:[],extras:[]};return S.weeks[w]}
+function peekWeek(){return S.weeks[mondayOf(today())]||{areas:[],extras:[]}}
+/* Areas locked in for this week. Until a loadout is picked, every area counts. */
+function hasLoadout(){return peekWeek().areas.length>0}
+function coreAreas(){var a=peekWeek().areas;return a.length?a:STAT_KEYS}
+function coreQuests(){var a=coreAreas();return S.quests.filter(function(q){return a.indexOf(q.stat)>=0})}
+function bonusQuests(){var a=coreAreas();return S.quests.filter(function(q){return a.indexOf(q.stat)<0})}
+function activeExtras(){var t=today();return peekWeek().extras.filter(function(e){return e.until==='week'?e.date<=t:e.date===t})}
 function bossInfo(){
   var t=today(),W=mondayOf(t);
   var start=S.startDate>W?S.startDate:W;
   var idx=Math.max(0,Math.round(daysBetween(mondayOf(S.startDate),W)/7));
   var prior=0,k;for(k in S.wins)if(k<W)prior++;
-  var max=500+50*Math.min(8,prior);
+  var daily=0;coreQuests().forEach(function(q){daily+=questXp(q.stat)});
+  var max=Math.max(200,Math.round(daily*7*0.6/10)*10)+20*Math.min(8,prior);
   var dmg=0,missed=0,d;
   for(d=W;d<=t;d=addDays(d,1))dmg+=dayXp(d);
   for(d=start;d<t;d=addDays(d,1))if(dayXp(d)===0)missed++;
@@ -233,6 +256,7 @@ function streakInfo(){
 }
 
 var tab='battle',editing=false,resetArmed=false,cloud='local',lastResult=null;
+var picking=false,pick=[],addingX=false,xName='',xStat='ielts',xUntil='today',bonusOpen=false;
 var view=document.getElementById('view');
 
 function toast(msg){
@@ -253,7 +277,7 @@ function settle(before){
 }
 
 function toggleQuest(id){
-  var q=S.quests.filter(function(x){return x.id===id})[0];if(!q)return;
+  var q=S.quests.concat(activeExtras()).filter(function(x){return x.id===id})[0];if(!q)return;
   var before=levelInfo(totalXp()).L,d=day(today()),hit=0;
   if(d.q[id])delete d.q[id];
   else{hit=questXp(q.stat);d.q[id]={s:q.stat,x:hit}}
@@ -293,21 +317,51 @@ function renderBattle(){
     '<div class="row small dim"><span class="num">HP '+b.hp+' / '+b.max+'</span><span class="num">'+(b.daysLeft===0?'Last day':b.daysLeft+' days left')+'</span></div>'+
     (b.healed?'<p class="small dim" style="margin:8px 0 0">It healed '+b.healed+' HP on days you skipped.</p>':'');
   h+='</div></div><div class="col">';
+  if(!hasLoadout()||picking)h+=renderPicker();
+  else h+='<div class="row"><span class="small"><span class="dim">This week: </span>'+peekWeek().areas.map(function(a){return esc(STATS[a].n)}).join(' · ')+'</span><button type="button" class="ghost" id="btn-repick">Change</button></div>';
   h+='<div class="row"><span class="eyebrow">Daily quests</span><button type="button" class="ghost" id="btn-edit">'+(editing?'Done':'Edit')+'</button></div>';
   if(editing)h+=renderEditor();
   else{
+    var core=coreQuests(),extras=activeExtras(),bonus=bonusQuests();
     h+='<div class="list">';
-    if(!S.quests.length)h+='<div class="note">No quests yet. Tap Edit to add your first one.</div>';
-    S.quests.forEach(function(q){
-      var done=!!(d.q&&d.q[q.id]),main=STATS[q.stat].main;
-      h+='<button type="button" class="quest'+(main?' main':'')+(done?' done':'')+'" data-quest="'+esc(q.id)+'" aria-pressed="'+done+'">'+
-        '<span class="box">'+(done?'✓':'')+'</span><span class="name">'+esc(q.name)+
-        '<span class="tag">'+(main?'MAIN QUEST · ':'SIDE QUEST · ')+esc(STATS[q.stat].n.toUpperCase())+'</span></span>'+
-        '<span class="xp num">+'+questXp(q.stat)+'</span></button>';
-    });
-    h+='</div><button type="button" class="cta" id="btn-gofocus">Start a focus battle</button>';
+    if(!core.length&&!extras.length)h+='<div class="note">No quests for this week\'s focus yet. Tap Edit to add one.</div>';
+    core.forEach(function(q){h+=questRow(q,d,(STATS[q.stat].main?'MAIN QUEST · ':'SIDE QUEST · ')+STATS[q.stat].n.toUpperCase())});
+    extras.forEach(function(q){h+=questRow(q,d,(q.until==='week'?'EXTRA THIS WEEK · ':'EXTRA TODAY · ')+STATS[q.stat].n.toUpperCase())});
+    h+='</div>';
+    h+=addingX?renderExtraForm():'<button type="button" class="ghost" id="btn-addx">Add an activity</button>';
+    if(bonus.length){
+      h+='<details id="bonus"'+(bonusOpen?' open':'')+'><summary>Bonus quests, optional</summary><div class="list" style="margin-top:8px">'+
+        '<div class="note">Outside this week\'s focus. They give XP when you do them and cost nothing when you skip them.</div>';
+      bonus.forEach(function(q){h+=questRow(q,d,'BONUS · '+STATS[q.stat].n.toUpperCase())});
+      h+='</div></details>';
+    }
+    h+='<button type="button" class="cta" id="btn-gofocus">Start a focus battle</button>';
   }
   view.innerHTML=h+'</div></div>';
+}
+function questRow(q,d,tag){
+  var done=!!(d.q&&d.q[q.id]),main=STATS[q.stat].main;
+  return '<button type="button" class="quest'+(main?' main':'')+(done?' done':'')+'" data-quest="'+esc(q.id)+'" aria-pressed="'+done+'">'+
+    '<span class="box">'+(done?'✓':'')+'</span><span class="name">'+esc(q.name)+'<span class="tag">'+esc(tag)+'</span></span>'+
+    '<span class="xp num">+'+questXp(q.stat)+'</span></button>';
+}
+function renderPicker(){
+  var h='<div class="card" style="display:flex;flex-direction:column;gap:10px;border-color:var(--violet)"><div class="eyebrow">This week\'s focus</div>'+
+    '<div class="small dim">IELTS is always in. Pick 1 or 2 more. Everything else becomes an optional bonus.</div><div class="chips">'+
+    '<span class="chip on" aria-label="IELTS, always included">IELTS ✓</span>';
+  STAT_KEYS.forEach(function(k){if(k==='ielts')return;var on=pick.indexOf(k)>=0;
+    h+='<button type="button" class="chip'+(on?' on':'')+'" data-pick="'+k+'" aria-pressed="'+on+'">'+STATS[k].n+'</button>'});
+  h+='</div><button type="button" class="cta mint" id="btn-lock">Lock in this week</button>'+
+    (hasLoadout()?'<button type="button" class="ghost" id="btn-cancelpick">Cancel</button>':'')+'</div>';
+  return h;
+}
+function renderExtraForm(){
+  return '<div class="card" style="display:flex;flex-direction:column;gap:10px"><div class="eyebrow">Add an activity</div>'+
+    '<input type="text" id="x-name" maxlength="60" placeholder="Read 1 paper on feedback" aria-label="Activity name" value="'+esc(xName)+'">'+
+    '<select id="x-stat" aria-label="Activity area" style="width:100%">'+STAT_KEYS.map(function(k){return '<option value="'+k+'"'+(k===xStat?' selected':'')+'>'+STATS[k].n+' · +'+questXp(k)+' XP</option>'}).join('')+'</select>'+
+    '<div class="chips"><button type="button" class="chip'+(xUntil==='today'?' on':'')+'" data-until="today" aria-pressed="'+(xUntil==='today')+'">Today only</button>'+
+    '<button type="button" class="chip'+(xUntil==='week'?' on':'')+'" data-until="week" aria-pressed="'+(xUntil==='week')+'">Rest of this week</button></div>'+
+    '<div class="row"><button type="button" class="ghost" id="btn-cancelx">Cancel</button><button type="button" class="ghost" id="btn-savex" style="border-color:var(--mint);color:var(--mint)">Add</button></div></div>';
 }
 
 function renderEditor(){
@@ -318,7 +372,11 @@ function renderEditor(){
       STAT_KEYS.map(function(s){return '<option value="'+s+'"'+(s===q.stat?' selected':'')+'>'+STATS[s].n+'</option>'}).join('')+'</select>'+
       '<button type="button" class="ghost danger" data-qdel="'+esc(q.id)+'" aria-label="Remove quest '+(i+1)+'">✕</button></div>';
   });
-  h+='<button type="button" class="ghost" id="btn-addq">Add quest</button>'+
+  h+='<button type="button" class="ghost" id="btn-addq">Add quest</button>';
+  activeExtras().forEach(function(e){
+    h+='<div class="row"><span class="small">'+esc(e.name)+' <span class="dim">· extra</span></span><button type="button" class="ghost danger" data-xdel="'+esc(e.id)+'" aria-label="Remove extra activity">✕</button></div>';
+  });
+  h+=
      '<div class="note">IELTS and MA TESOL are main quests worth 40 XP. The rest are side quests worth 20 XP.</div></div>';
   return h;
 }
@@ -402,7 +460,7 @@ document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.t
 
 document.querySelector('nav').addEventListener('click',function(e){
   var b=e.target.closest('button[data-tab]');if(!b)return;
-  tab=b.getAttribute('data-tab');editing=false;resetArmed=false;render();view.scrollTop=0;
+  tab=b.getAttribute('data-tab');editing=false;resetArmed=false;picking=false;addingX=false;render();view.scrollTop=0;
 });
 view.addEventListener('click',function(e){
   var b=e.target.closest('button');if(!b)return;
@@ -411,9 +469,27 @@ view.addEventListener('click',function(e){
   if((a=b.getAttribute('data-quest'))){toggleQuest(a);return}
   if((a=b.getAttribute('data-stat'))){S.lastStat=a;commit();render();return}
   if((a=b.getAttribute('data-min'))){S.focusMin=+a;commit();render();return}
-  if((a=b.getAttribute('data-qdel'))){S.quests=S.quests.filter(function(q){return q.id!==a});commit();render();return}
+  if((a=b.getAttribute('data-pick'))){
+    var i=pick.indexOf(a);
+    if(i>=0)pick.splice(i,1);else if(pick.length>=2){toast('Three areas max. Drop one first');return}else if(has(STATS,a)&&a!=='ielts')pick.push(a);
+    render();return}
+  if((a=b.getAttribute('data-until'))){xUntil=a==='week'?'week':'today';render();return}
+  if((a=b.getAttribute('data-xdel'))){var wx=week();wx.extras=wx.extras.filter(function(e){return e.id!==a});commit();render();return}
+  if((a=b.getAttribute('data-qdel'))){var lvD=levelInfo(totalXp()).L;S.quests=S.quests.filter(function(q){return q.id!==a});settle(lvD);render();return}
   switch(b.id){
-    case 'btn-edit':editing=!editing;render();break;
+    case 'btn-edit':editing=!editing;addingX=false;render();break;
+    case 'btn-repick':picking=true;pick=peekWeek().areas.filter(function(k){return k!=='ielts'});render();break;
+    case 'btn-cancelpick':picking=false;pick=[];render();break;
+    case 'btn-lock':
+      if(pick.length<1){toast('Pick 1 or 2 more areas');break}
+      var lvB=levelInfo(totalXp()).L;week().areas=['ielts'].concat(pick.slice(0,2));picking=false;pick=[];settle(lvB);render();break;
+    case 'btn-addx':addingX=true;xName='';xUntil='today';xStat=coreAreas()[0]||'ielts';render();var xn=document.getElementById('x-name');if(xn)xn.focus();break;
+    case 'btn-cancelx':addingX=false;render();break;
+    case 'btn-savex':
+      var nm=xName.trim();
+      if(!nm){toast('Name the activity first');break}
+      week().extras.push({id:'x'+Date.now().toString(36),name:nm.slice(0,60),stat:has(STATS,xStat)?xStat:'ielts',until:xUntil,date:today()});
+      addingX=false;xName='';commit();render();break;
     case 'btn-addq':S.quests.push({id:'q'+Date.now().toString(36),name:'New quest',stat:'ielts'});commit();render();break;
     case 'btn-gofocus':tab='focus';render();view.scrollTop=0;break;
     case 'btn-start':lastResult=null;S.timer={phase:'focus',stat:S.lastStat,mins:S.focusMin,end:Date.now()+S.focusMin*60000};commit();render();break;
@@ -423,14 +499,17 @@ view.addEventListener('click',function(e){
     case 'btn-restore':restore();break;
     case 'btn-reset':
       if(!resetArmed){resetArmed=true;render()}
-      else{resetArmed=false;S=fresh();lastResult=null;commit();render();toast('Progress erased')}
+      else{resetArmed=false;S=fresh();lastResult=null;picking=false;pick=[];addingX=false;xName='';commit();render();toast('Progress erased')}
       break;
   }
 });
+view.addEventListener('input',function(e){if(e.target.id==='x-name')xName=e.target.value});
+view.addEventListener('toggle',function(e){if(e.target.id==='bonus')bonusOpen=e.target.open},true);
 view.addEventListener('change',function(e){
   var el=e.target,a;
+  if(el.id==='x-stat'){if(has(STATS,el.value))xStat=el.value;return}
   if((a=el.getAttribute('data-qname'))){S.quests.forEach(function(q){if(q.id===a)q.name=el.value.trim()||'Untitled quest'});commit()}
-  else if((a=el.getAttribute('data-qstat'))){S.quests.forEach(function(q){if(q.id===a&&STATS[el.value])q.stat=el.value});commit()}
+  else if((a=el.getAttribute('data-qstat'))){var lvC=levelInfo(totalXp()).L;S.quests.forEach(function(q){if(q.id===a&&has(STATS,el.value))q.stat=el.value});settle(lvC)}
 });
 function copyBackup(){
   var code=JSON.stringify(S),box=document.getElementById('backup');
@@ -441,7 +520,7 @@ function restore(){
   var box=document.getElementById('backup');if(!box)return;
   var txt=box.value.trim();
   if(!txt){toast('Paste a backup code first');return}
-  try{var o=JSON.parse(txt);if(!o||typeof o!=='object'||!o.days||typeof o.days!=='object'||!Array.isArray(o.quests))throw 0;S=migrate(o);commit();render();toast('Progress restored')}
+  try{var o=JSON.parse(txt);if(!o||typeof o!=='object'||!o.days||typeof o.days!=='object'||!Array.isArray(o.quests))throw 0;S=migrate(o);picking=false;pick=[];addingX=false;xName='';commit();render();toast('Progress restored')}
   catch(e){toast('That code is not a valid backup')}
 }
 
