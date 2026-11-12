@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b0e1a">
+<meta name="description" content="Beat a weekly boss by doing your real work.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>No Regrets</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* layout: one-screen phone app. Scrolling main column, fixed bottom tab bar, single dark theme by choice */
+  --bg:#0b0e1a; --panel:#161a2e; --panel2:#1d2340; --line:#2a3154;
+  --ink:#e8ecff; --dim:#9aa3cf;
+  --mint:#5ef2c2; --violet:#b48cff; --hp:#ff5d7a; --flame:#ffb454;
+  --display:'Rajdhani','Trebuchet MS',sans-serif; --body:'Barlow','Segoe UI',sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+#app{height:100%;max-width:480px;margin:0 auto;display:flex;flex-direction:column}
+main{flex:1;overflow-y:auto;padding:16px 16px 24px;display:flex;flex-direction:column;gap:14px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
+button{font-family:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.brand{font-family:var(--display);font-weight:700;font-size:24px;letter-spacing:2px}
+.pill{font-family:var(--display);font-weight:700;font-size:15px;color:var(--bg);background:var(--mint);padding:2px 12px;border-radius:99px;white-space:nowrap}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.dim{color:var(--dim)}
+.small{font-size:14px}
+.eyebrow{font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:2.5px;color:var(--dim);text-transform:uppercase}
+.bar{height:10px;border-radius:99px;background:#232a4a;overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:99px;transition:width .4s ease}
+.bar.xp>i{background:var(--mint);box-shadow:0 0 10px rgba(94,242,194,.6)}
+.bar.hp{height:14px}
+.bar.hp>i{background:var(--hp);box-shadow:0 0 10px rgba(255,93,122,.6)}
+.flame{color:var(--flame);font-weight:600}
+.boss{position:relative;text-align:center;overflow:hidden}
+.boss svg{display:block;margin:8px auto 6px;color:var(--violet)}
+.boss.dead svg{opacity:.25}
+.boss h2{font-size:24px;letter-spacing:1px}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}60%{transform:translateX(8px)}}
+.shake{animation:shake .3s}
+@keyframes floatup{from{opacity:1;transform:translate(-50%,0)}to{opacity:0;transform:translate(-50%,-60px)}}
+.dmg{position:absolute;left:50%;top:70px;font-family:var(--display);font-weight:700;font-size:30px;color:var(--hp);pointer-events:none;animation:floatup .9s ease-out forwards}
+.quest{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-height:56px;font-size:16px}
+.quest .box{flex:none;width:24px;height:24px;border-radius:50%;border:2px solid var(--dim);display:grid;place-items:center;font-size:14px;font-weight:700;color:var(--bg)}
+.quest .name{flex:1;min-width:0;overflow-wrap:anywhere}
+.quest .tag{display:block;font-family:var(--display);font-size:13px;letter-spacing:1.5px;color:var(--dim)}
+.quest .xp{font-family:var(--display);font-weight:700;font-size:18px;color:var(--dim)}
+.quest.main .xp{color:var(--violet)}
+.quest.done{border-color:var(--mint);background:#12261f}
+.quest.done .box{background:var(--mint);border-color:var(--mint)}
+.quest.done .name{color:var(--mint)}
+.quest.done .xp{color:var(--mint)}
+.list{display:flex;flex-direction:column;gap:8px}
+.cta{width:100%;border:0;border-radius:14px;padding:14px;font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:1px;background:var(--violet);color:var(--bg);min-height:52px}
+.cta.mint{background:var(--mint)}
+.ghost{background:transparent;border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-height:44px;font-size:15px;color:var(--ink)}
+.ghost.danger{color:var(--hp);border-color:#5a2a3a}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:8px 14px;min-height:44px;font-size:15px}
+.chip.on{border-color:var(--mint);color:var(--mint);background:#12261f}
+.ring{position:relative;width:230px;height:230px;margin:6px auto}
+.ring svg{transform:rotate(-90deg)}
+.ring .t{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.ring .clock{font-family:var(--display);font-weight:700;font-size:56px;line-height:1}
+.stat{display:flex;flex-direction:column;gap:5px}
+.grid28{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cell{aspect-ratio:1;border-radius:6px;background:#1a2040;border:1px solid transparent}
+.cell.l1{background:#1f4a44}.cell.l2{background:#2f8f78}.cell.l3{background:var(--mint);box-shadow:0 0 8px rgba(94,242,194,.5)}
+.cell.today{border-color:var(--ink)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px;text-align:center}
+.tile b{display:block;font-family:var(--display);font-size:26px;line-height:1.1}
+.tile span{font-size:13px;color:var(--dim)}
+nav{flex:none;display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);background:#0e1222;padding-bottom:env(safe-area-inset-bottom)}
+nav button{background:none;border:0;padding:12px 4px 14px;font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:1.5px;color:var(--dim);min-height:52px}
+nav button.on{color:var(--mint)}
+.edit{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
+input[type=text],select,textarea{font-family:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:44px;width:100%;min-width:0}
+select{width:auto}
+textarea{min-height:90px;font-size:13px}
+#toast{position:fixed;left:50%;top:18px;transform:translate(-50%,-140%);background:var(--mint);color:var(--bg);font-family:var(--display);font-weight:700;font-size:18px;padding:10px 18px;border-radius:12px;transition:transform .35s ease;z-index:5;max-width:90%;text-align:center}
+#toast.show{transform:translate(-50%,0)}
+.note{background:var(--panel2);border-radius:12px;padding:10px 12px;font-size:14px;color:var(--dim)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="view"></main>
+  <nav aria-label="Sections">
+    <button type="button" data-tab="battle" class="on">BATTLE</button>
+    <button type="button" data-tab="focus">FOCUS</button>
+    <button type="button" data-tab="progress">PROGRESS</button>
+  </nav>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+'use strict';
+var KEY='no-regrets-save-v1';
+var STANDALONE=!(window.claude&&typeof window.claude.use==='function');
+var STATS={
+  ielts:{n:'IELTS',main:true},
+  ma:{n:'MA TESOL',main:true},
+  body:{n:'Body',main:false},
+  drums:{n:'Drums',main:false},
+  teach:{n:'Teaching',main:false}
+};
+var STAT_KEYS=['ielts','ma','body','drums','teach'];
+var BOSSES=['Essay Hydra','Procrastination Golem','Doomscroll Wraith','Deadline Dragon','Comfort Zone Slime','Burnout Lich'];
+var BOSS_COLORS=['#b48cff','#7fb2ff','#ff8fd0','#ffb454','#7de08a','#c9c9ff'];
+
+function pad(n){return n<10?'0'+n:''+n}
+function ymd(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function parse(s){var p=s.split('-');return new Date(+p[0],+p[1]-1,+p[2])}
+function addDays(s,n){var d=parse(s);d.setDate(d.getDate()+n);return ymd(d)}
+function today(){return ymd(new Date())}
+function mondayOf(s){var d=parse(s);var w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);return ymd(d)}
+function daysBetween(a,b){return Math.round((parse(b)-parse(a))/86400000)}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function questXp(stat){return has(STATS,stat)&&STATS[stat].main?40:20}
+function focusXp(stat,mins){return Math.round((STATS[stat].main?30:15)*mins/25)}
+
+function fresh(){
+  return {v:1,updatedAt:0,startDate:today(),focusMin:25,lastStat:'ielts',
+    quests:[
+      {id:'q1',name:'Write 1 essay or record 1 Speaking',stat:'ielts'},
+      {id:'q2',name:'MA TESOL 45 min',stat:'ma'},
+      {id:'q3',name:'Train 15 min',stat:'body'},
+      {id:'q4',name:'Drums 15 min',stat:'drums'},
+      {id:'q5',name:'Prep a lesson or post for class',stat:'teach'}
+    ],
+    days:{},wins:{},timer:null};
+}
+function has(o,k){return Object.prototype.hasOwnProperty.call(o,k)}
+var DATE_RE=/^\d{4}-\d\d-\d\d$/;
+function num(v){v=+v;return isFinite(v)&&v>0?Math.round(v):0}
+/* Rebuilds a save from untrusted input, keeping only well-formed parts. */
+function migrate(o){
+  var r=fresh();
+  if(!o||typeof o!=='object'||Array.isArray(o))return r;
+  if(typeof o.updatedAt==='number'&&isFinite(o.updatedAt))r.updatedAt=o.updatedAt;
+  if(typeof o.startDate==='string'&&DATE_RE.test(o.startDate)&&o.startDate<=today())r.startDate=o.startDate;
+  if([15,25,45].indexOf(o.focusMin)>=0)r.focusMin=o.focusMin;
+  if(typeof o.lastStat==='string'&&has(STATS,o.lastStat))r.lastStat=o.lastStat;
+  if(Array.isArray(o.quests))r.quests=o.quests.filter(function(q){
+    return q&&typeof q==='object'&&q.id!=null&&typeof q.stat==='string'&&has(STATS,q.stat);
+  }).map(function(q){return {id:String(q.id).slice(0,40),name:String(q.name==null?'Untitled quest':q.name).slice(0,60),stat:q.stat}});
+  if(o.days&&typeof o.days==='object'&&!Array.isArray(o.days))Object.keys(o.days).forEach(function(d){
+    var x=o.days[d];if(!DATE_RE.test(d)||!x||typeof x!=='object')return;
+    var out={q:{},f:[]};
+    if(x.q&&typeof x.q==='object')Object.keys(x.q).forEach(function(k){
+      var e=x.q[k];if(e&&typeof e==='object'&&typeof e.s==='string'&&has(STATS,e.s))out.q[k]={s:e.s,x:num(e.x)};
+    });
+    if(Array.isArray(x.f))x.f.forEach(function(e){
+      if(e&&typeof e==='object'&&typeof e.s==='string'&&has(STATS,e.s))out.f.push({s:e.s,x:num(e.x),m:num(e.m)});
+    });
+    r.days[d]=out;
+  });
+  if(o.wins&&typeof o.wins==='object'&&!Array.isArray(o.wins))Object.keys(o.wins).forEach(function(w){
+    if(DATE_RE.test(w)&&num(o.wins[w]))r.wins[w]=num(o.wins[w]);
+  });
+  var T=o.timer;
+  if(T&&typeof T==='object'&&(T.phase==='focus'||T.phase==='break')&&typeof T.stat==='string'&&has(STATS,T.stat)&&num(T.mins)&&typeof T.end==='number'&&isFinite(T.end))
+    r.timer={phase:T.phase,stat:T.stat,mins:num(T.mins),end:T.end};
+  return r;
+}
+var S,isFresh=false;
+(function load(){
+  var raw=null;
+  try{raw=localStorage.getItem(KEY)}catch(e){}
+  if(raw){try{S=migrate(JSON.parse(raw))}catch(e){S=null}}
+  if(!S){S=fresh();isFresh=true}
+})();
+var baseAt=S.updatedAt||0;
+
+function day(d){if(!S.days[d])S.days[d]={q:{},f:[]};var x=S.days[d];if(!x.q)x.q={};if(!x.f)x.f=[];return x}
+function dayXp(d){
+  var x=S.days[d];if(!x)return 0;var t=0,k;
+  if(x.q)for(k in x.q)t+=+x.q[k].x||0;
+  if(x.f)for(k=0;k<x.f.length;k++)t+=+x.f[k].x||0;
+  return t;
+}
+function totalXp(){var t=0,k;for(k in S.days)t+=dayXp(k);for(k in S.wins)t+=+S.wins[k]||0;return t}
+function statXp(){
+  var r={},k,d,x,i;STAT_KEYS.forEach(function(s){r[s]=0});
+  for(d in S.days){x=S.days[d];
+    if(x.q)for(k in x.q)if(r[x.q[k].s]!==undefined)r[x.q[k].s]+=+x.q[k].x||0;
+    if(x.f)for(i=0;i<x.f.length;i++)if(r[x.f[i].s]!==undefined)r[x.f[i].s]+=+x.f[i].x||0;
+  }
+  return r;
+}
+function levelInfo(xp){var L=1,need=100;while(xp>=need){xp-=need;L++;need=100+50*(L-1)}return {L:L,cur:xp,need:need}}
+
+function bossInfo(){
+  var t=today(),W=mondayOf(t);
+  var start=S.startDate>W?S.startDate:W;
+  var idx=Math.max(0,Math.round(daysBetween(mondayOf(S.startDate),W)/7));
+  var prior=0,k;for(k in S.wins)if(k<W)prior++;
+  var max=500+50*Math.min(8,prior);
+  var dmg=0,missed=0,d;
+  for(d=W;d<=t;d=addDays(d,1))dmg+=dayXp(d);
+  for(d=start;d<t;d=addDays(d,1))if(dayXp(d)===0)missed++;
+  var heal=Math.max(0,missed-1)*Math.round(max*0.1);
+  var hp=Math.max(0,Math.min(max,max-dmg+heal));
+  var dead=!!S.wins[W];
+  if(dead)hp=0;
+  return {week:W,name:BOSSES[idx%BOSSES.length],color:BOSS_COLORS[idx%BOSS_COLORS.length],max:max,hp:hp,dead:dead,
+    shieldLeft:missed===0,daysLeft:6-daysBetween(W,t),healed:heal};
+}
+function streakInfo(){
+  var t=today(),d=t,n=0,used={};
+  if(dayXp(t)===0)d=addDays(t,-1);
+  while(d>=S.startDate){
+    if(dayXp(d)>0)n++;
+    else{var w=mondayOf(d);if(used[w])break;used[w]=true}
+    d=addDays(d,-1);
+  }
+  return n;
+}
+
+var tab='battle',editing=false,resetArmed=false,cloud='local',lastResult=null;
+var view=document.getElementById('view');
+
+function toast(msg){
+  var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');
+  clearTimeout(toast.t);toast.t=setTimeout(function(){el.classList.remove('show')},2400);
+}
+function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function commit(){S.updatedAt=Date.now();saveLocal();pushCloud()}
+
+/* Runs after any XP change. Returns what happened so the UI can celebrate. */
+function settle(before){
+  var b=bossInfo(),won=false;
+  if(!b.dead&&b.hp<=0){S.wins[b.week]=100;won=true}
+  var after=levelInfo(totalXp()).L;
+  commit();
+  if(won)toast('Boss defeated. +100 XP');
+  else if(after>before)toast('Level up. You are now LV '+after);
+}
+
+function toggleQuest(id){
+  var q=S.quests.filter(function(x){return x.id===id})[0];if(!q)return;
+  var before=levelInfo(totalXp()).L,d=day(today()),hit=0;
+  if(d.q[id])delete d.q[id];
+  else{hit=questXp(q.stat);d.q[id]={s:q.stat,x:hit}}
+  settle(before);render();
+  if(hit)hitFx(hit);
+}
+function hitFx(n){
+  var card=document.getElementById('bosscard');if(!card)return;
+  var svg=card.querySelector('svg');if(svg){svg.classList.remove('shake');void svg.offsetWidth;svg.classList.add('shake')}
+  var f=document.createElement('div');f.className='dmg';f.textContent='-'+n;card.appendChild(f);
+  setTimeout(function(){if(f.parentNode)f.parentNode.removeChild(f)},950);
+}
+
+function bossSvg(color){
+  return '<svg width="112" height="98" viewBox="0 0 16 14" fill="currentColor" style="color:'+color+'" aria-hidden="true">'+
+  '<rect x="3" y="1" width="10" height="8"/><rect x="1" y="3" width="2" height="4"/><rect x="13" y="3" width="2" height="4"/>'+
+  '<rect x="4" y="9" width="2" height="3"/><rect x="7" y="9" width="2" height="4"/><rect x="10" y="9" width="2" height="3"/>'+
+  '<rect x="2" y="0" width="2" height="2"/><rect x="12" y="0" width="2" height="2"/>'+
+  '<rect x="5" y="3" width="2" height="2" fill="#ff5d7a"/><rect x="9" y="3" width="2" height="2" fill="#ff5d7a"/>'+
+  '<rect x="6" y="6" width="4" height="1" fill="#161a2e"/></svg>';
+}
+
+function header(){
+  var lv=levelInfo(totalXp()),st=streakInfo(),b=bossInfo();
+  return '<div class="top"><span class="brand">NO REGRETS</span><span class="pill num">LV '+lv.L+'</span></div>'+
+    '<div class="card"><div class="row small" style="margin-bottom:8px"><span class="dim num">XP '+lv.cur+' / '+lv.need+'</span>'+
+    '<span><span class="flame num">'+st+' day streak</span> <span class="dim">'+(b.shieldLeft?'· shield ready':'· shield used')+'</span></span></div>'+
+    '<div class="bar xp"><i style="width:'+Math.round(lv.cur/lv.need*100)+'%"></i></div></div>';
+}
+
+function renderBattle(){
+  var b=bossInfo(),t=today(),d=S.days[t]||{q:{}},h=header();
+  h+='<div class="card boss'+(b.dead?' dead':'')+'" id="bosscard"><div class="eyebrow">This week\'s boss</div>'+bossSvg(b.color)+
+    '<h2>'+esc(b.name)+'</h2>';
+  if(b.dead)h+='<p class="small" style="color:var(--mint);margin:8px 0 0">Defeated. A new boss arrives Monday.</p>';
+  else h+='<div class="bar hp" style="margin:10px 0 6px"><i style="width:'+Math.round(b.hp/b.max*100)+'%"></i></div>'+
+    '<div class="row small dim"><span class="num">HP '+b.hp+' / '+b.max+'</span><span class="num">'+(b.daysLeft===0?'Last day':b.daysLeft+' days left')+'</span></div>'+
+    (b.healed?'<p class="small dim" style="margin:8px 0 0">It healed '+b.healed+' HP on days you skipped.</p>':'');
+  h+='</div>';
+  h+='<div class="row"><span class="eyebrow">Daily quests</span><button type="button" class="ghost" id="btn-edit">'+(editing?'Done':'Edit')+'</button></div>';
+  if(editing)h+=renderEditor();
+  else{
+    h+='<div class="list">';
+    if(!S.quests.length)h+='<div class="note">No quests yet. Tap Edit to add your first one.</div>';
+    S.quests.forEach(function(q){
+      var done=!!(d.q&&d.q[q.id]),main=STATS[q.stat].main;
+      h+='<button type="button" class="quest'+(main?' main':'')+(done?' done':'')+'" data-quest="'+esc(q.id)+'" aria-pressed="'+done+'">'+
+        '<span class="box">'+(done?'✓':'')+'</span><span class="name">'+esc(q.name)+
+        '<span class="tag">'+(main?'MAIN QUEST · ':'SIDE QUEST · ')+esc(STATS[q.stat].n.toUpperCase())+'</span></span>'+
+        '<span class="xp num">+'+questXp(q.stat)+'</span></button>';
+    });
+    h+='</div><button type="button" class="cta" id="btn-gofocus">Start a focus battle</button>';
+  }
+  view.innerHTML=h;
+}
+
+function renderEditor(){
+  var h='<div class="list">';
+  S.quests.forEach(function(q,i){
+    h+='<div class="edit"><input type="text" id="qn-'+esc(q.id)+'" data-qname="'+esc(q.id)+'" value="'+esc(q.name)+'" maxlength="60" aria-label="Quest '+(i+1)+' name">'+
+      '<select id="qs-'+esc(q.id)+'" data-qstat="'+esc(q.id)+'" aria-label="Quest '+(i+1)+' area">'+
+      STAT_KEYS.map(function(s){return '<option value="'+s+'"'+(s===q.stat?' selected':'')+'>'+STATS[s].n+'</option>'}).join('')+'</select>'+
+      '<button type="button" class="ghost danger" data-qdel="'+esc(q.id)+'" aria-label="Remove quest '+(i+1)+'">✕</button></div>';
+  });
+  h+='<button type="button" class="ghost" id="btn-addq">Add quest</button>'+
+     '<div class="note">IELTS and MA TESOL are main quests worth 40 XP. The rest are side quests worth 20 XP.</div></div>';
+  return h;
+}
+
+function fmt(ms){var s=Math.max(0,Math.ceil(ms/1000));return pad(Math.floor(s/60))+':'+pad(s%60)}
+function renderFocus(){
+  var h='<div class="top"><span class="brand">FOCUS BATTLE</span></div>',T=S.timer;
+  if(T){
+    var total=T.mins*60000,left=T.end-Date.now(),C=2*Math.PI*104;
+    h+='<div class="ring"><svg width="230" height="230" viewBox="0 0 230 230" aria-hidden="true"><circle cx="115" cy="115" r="104" fill="none" stroke="#232a4a" stroke-width="12"/>'+
+      '<circle id="ringarc" cx="115" cy="115" r="104" fill="none" stroke="'+(T.phase==='break'?'#b48cff':'#5ef2c2')+'" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+C.toFixed(1)+'" stroke-dashoffset="'+(C*(1-Math.max(0,left)/total)).toFixed(1)+'"/></svg>'+
+      '<div class="t"><div><div class="clock num" id="clock">'+fmt(left)+'</div><div class="dim small">'+(T.phase==='break'?'Break':esc(STATS[T.stat].n))+'</div></div></div></div>';
+    h+='<div class="note">The clock keeps counting if you lock the screen or switch apps. Come back when it ends to collect your XP.</div>';
+    h+='<button type="button" class="ghost danger" id="btn-stop">'+(T.phase==='break'?'Skip break':'Give up, no XP')+'</button>';
+  }else{
+    if(lastResult)h+='<div class="card" style="border-color:var(--mint);text-align:center"><h2 style="color:var(--mint)">Victory</h2><p style="margin:6px 0 12px">+'+lastResult.x+' XP for '+esc(STATS[lastResult.s].n)+'</p><button type="button" class="ghost" id="btn-break">Take a 5 minute break</button></div>';
+    h+='<div class="eyebrow">Fight for</div><div class="chips">'+STAT_KEYS.map(function(s){
+      return '<button type="button" class="chip'+(S.lastStat===s?' on':'')+'" data-stat="'+s+'" aria-pressed="'+(S.lastStat===s)+'">'+STATS[s].n+'</button>'}).join('')+'</div>';
+    h+='<div class="eyebrow">Length</div><div class="chips">'+[15,25,45].map(function(m){
+      return '<button type="button" class="chip'+(S.focusMin===m?' on':'')+'" data-min="'+m+'" aria-pressed="'+(S.focusMin===m)+'">'+m+' min</button>'}).join('')+'</div>';
+    h+='<div class="note">Before you start, turn on Focus or Do Not Disturb on your phone. This app cannot block other apps for you.</div>';
+    h+='<button type="button" class="cta mint" id="btn-start">Start '+S.focusMin+' min battle · +'+focusXp(S.lastStat,S.focusMin)+' XP</button>';
+  }
+  view.innerHTML=h;
+}
+
+function renderProgress(){
+  var sx=statXp(),t=today(),h='<div class="top"><span class="brand">PROGRESS</span><span class="pill num">LV '+levelInfo(totalXp()).L+'</span></div>';
+  var sessions=0,k,wins=0;for(k in S.days)sessions+=(S.days[k].f||[]).length;for(k in S.wins)wins++;
+  h+='<div class="tiles"><div class="tile"><b class="num">'+streakInfo()+'</b><span>day streak</span></div><div class="tile"><b class="num">'+wins+'</b><span>bosses beaten</span></div><div class="tile"><b class="num">'+sessions+'</b><span>focus battles</span></div></div>';
+  h+='<div class="eyebrow">Your stats</div><div class="card" style="display:flex;flex-direction:column;gap:12px">';
+  STAT_KEYS.forEach(function(s){
+    var L=Math.floor(sx[s]/150)+1,cur=sx[s]%150;
+    h+='<div class="stat"><div class="row small"><span>'+STATS[s].n+(STATS[s].main?' <span class="dim">· main</span>':'')+'</span><span class="dim num">LV '+L+' · '+cur+' / 150</span></div>'+
+      '<div class="bar xp"><i style="width:'+Math.round(cur/150*100)+'%;'+(STATS[s].main?'':'background:var(--violet);box-shadow:none')+'"></i></div></div>';
+  });
+  h+='</div><div class="eyebrow">Last 4 weeks</div><div class="card"><div class="grid28">';
+  var first=addDays(mondayOf(t),-21);
+  for(var i=0;i<28;i++){var d=addDays(first,i),x=dayXp(d),l=x>=100?3:x>=50?2:x>0?1:0;
+    h+='<div class="cell'+(l?' l'+l:'')+(d===t?' today':'')+'" title="'+d+', '+x+' XP"></div>'}
+  h+='</div><p class="small dim" style="margin:10px 0 0">Brighter means more XP that day. The outlined square is today.</p></div>';
+  h+='<div class="eyebrow">Save data</div><div class="card" style="display:flex;flex-direction:column;gap:10px">'+
+    '<div class="small dim" id="syncline">'+syncText()+'</div>'+
+    '<button type="button" class="ghost" id="btn-copy">Copy backup code</button>'+
+    '<textarea id="backup" placeholder="Paste a backup code here to restore" aria-label="Backup code"></textarea>'+
+    '<button type="button" class="ghost" id="btn-restore">Restore from code</button>'+
+    '<button type="button" class="ghost danger" id="btn-reset">'+(resetArmed?'Tap again to erase everything':'Reset all progress')+'</button></div>';
+  view.innerHTML=h;
+}
+function syncText(){return STANDALONE?'Progress is saved on this phone only. Copy a backup code now and then, in case the browser data gets cleared.':cloud==='cloud'?'Progress is saved to your Claude account and on this device.':cloud==='error'?'Cloud save is unavailable right now. Progress is saved on this device only.':'Progress is saved on this device.'}
+
+function render(){
+  var navs=document.querySelectorAll('nav button');
+  for(var i=0;i<navs.length;i++)navs[i].classList.toggle('on',navs[i].getAttribute('data-tab')===tab);
+  if(tab==='battle')renderBattle();else if(tab==='focus')renderFocus();else renderProgress();
+}
+
+function finishTimer(){
+  var T=S.timer;if(!T)return;
+  S.timer=null;
+  if(T.phase==='focus'){
+    var before=levelInfo(totalXp()).L,x=focusXp(T.stat,T.mins);
+    var endDay=ymd(new Date(T.end));day(endDay>today()?today():endDay).f.push({s:T.stat,x:x,m:T.mins});
+    lastResult={s:T.stat,x:x};
+    settle(before);
+    try{if(navigator.vibrate)navigator.vibrate([200,100,200])}catch(e){}
+  }else{commit();toast('Break over. Ready for the next battle')}
+  render();
+}
+setInterval(function(){
+  var T=S.timer;if(!T)return;
+  var left=T.end-Date.now();
+  if(left<=0){finishTimer();return}
+  if(tab==='focus'){
+    var c=document.getElementById('clock'),a=document.getElementById('ringarc');
+    if(c)c.textContent=fmt(left);
+    if(a){var C=2*Math.PI*104;a.setAttribute('stroke-dashoffset',(C*(1-left/(T.mins*60000))).toFixed(1))}
+  }
+},500);
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.timer&&S.timer.end<=Date.now())finishTimer()});
+
+document.querySelector('nav').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-tab]');if(!b)return;
+  tab=b.getAttribute('data-tab');editing=false;resetArmed=false;render();view.scrollTop=0;
+});
+view.addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  var a;
+  if(b.id!=='btn-reset'&&resetArmed){resetArmed=false;var rb=document.getElementById('btn-reset');if(rb)rb.textContent='Reset all progress'}
+  if((a=b.getAttribute('data-quest'))){toggleQuest(a);return}
+  if((a=b.getAttribute('data-stat'))){S.lastStat=a;commit();render();return}
+  if((a=b.getAttribute('data-min'))){S.focusMin=+a;commit();render();return}
+  if((a=b.getAttribute('data-qdel'))){S.quests=S.quests.filter(function(q){return q.id!==a});commit();render();return}
+  switch(b.id){
+    case 'btn-edit':editing=!editing;render();break;
+    case 'btn-addq':S.quests.push({id:'q'+Date.now().toString(36),name:'New quest',stat:'ielts'});commit();render();break;
+    case 'btn-gofocus':tab='focus';render();view.scrollTop=0;break;
+    case 'btn-start':lastResult=null;S.timer={phase:'focus',stat:S.lastStat,mins:S.focusMin,end:Date.now()+S.focusMin*60000};commit();render();break;
+    case 'btn-break':lastResult=null;S.timer={phase:'break',stat:S.lastStat,mins:5,end:Date.now()+5*60000};commit();render();break;
+    case 'btn-stop':S.timer=null;commit();render();break;
+    case 'btn-copy':copyBackup();break;
+    case 'btn-restore':restore();break;
+    case 'btn-reset':
+      if(!resetArmed){resetArmed=true;render()}
+      else{resetArmed=false;S=fresh();lastResult=null;commit();render();toast('Progress erased')}
+      break;
+  }
+});
+view.addEventListener('change',function(e){
+  var el=e.target,a;
+  if((a=el.getAttribute('data-qname'))){S.quests.forEach(function(q){if(q.id===a)q.name=el.value.trim()||'Untitled quest'});commit()}
+  else if((a=el.getAttribute('data-qstat'))){S.quests.forEach(function(q){if(q.id===a&&STATS[el.value])q.stat=el.value});commit()}
+});
+function copyBackup(){
+  var code=JSON.stringify(S),box=document.getElementById('backup');
+  function fallback(){if(box){box.value=code;box.focus();box.select()}toast('Select all and copy the code below')}
+  try{navigator.clipboard.writeText(code).then(function(){toast('Backup code copied')},fallback)}catch(e){fallback()}
+}
+function restore(){
+  var box=document.getElementById('backup');if(!box)return;
+  var txt=box.value.trim();
+  if(!txt){toast('Paste a backup code first');return}
+  try{var o=JSON.parse(txt);if(!o||typeof o!=='object'||!o.days||typeof o.days!=='object'||!Array.isArray(o.quests))throw 0;S=migrate(o);commit();render();toast('Progress restored')}
+  catch(e){toast('That code is not a valid backup')}
+}
+
+/* Cloud save: one document, owner only. Local storage is the instant copy, the db is the durable one. */
+var docRef=null,saving=false,dirty=false,pushTimer=null;
+function pushCloud(){
+  if(!docRef)return;
+  clearTimeout(pushTimer);
+  pushTimer=setTimeout(function(){
+    if(saving){dirty=true;return}
+    saving=true;
+    docRef.set({updatedAt:S.updatedAt,json:JSON.stringify(S)}).then(function(){cloud='cloud'},function(){cloud='error'}).then(function(){
+      saving=false;var l=document.getElementById('syncline');if(l)l.textContent=syncText();
+      if(dirty){dirty=false;pushCloud()}
+    });
+  },1200);
+}
+(function initCloud(){
+  if(!window.claude||typeof window.claude.use!=='function')return;
+  window.claude.use('db').then(function(db){
+    if(!db)return;
+    var ref=db.doc('save/main');
+    return ref.get().then(function(snap){
+      var remote=null;
+      if(snap&&snap.exists){var body=snap.data();if(body&&typeof body.json==='string'){try{remote=JSON.parse(body.json)}catch(e){}}}
+      var valid=remote&&typeof remote==='object'&&remote.days&&Array.isArray(remote.quests);
+      var took=false;
+      if(valid&&(isFresh||(+remote.updatedAt||0)>baseAt)){S=migrate(remote);saveLocal();took=true;if(S.timer&&S.timer.end<=Date.now())finishTimer();else render()}
+      isFresh=false;docRef=ref;cloud='cloud';
+      if(!took&&S.updatedAt&&(!valid||S.updatedAt>(+remote.updatedAt||0)))pushCloud();
+      var l=document.getElementById('syncline');if(l)l.textContent=syncText();
+    });
+  }).catch(function(){cloud='error'});
+})();
+
+if(S.timer&&S.timer.end<=Date.now())finishTimer();else render();
+if('serviceWorker' in navigator&&location.protocol==='https:'){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
+</script>
+</body>
+</html>
