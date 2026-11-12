@@ -22,8 +22,11 @@
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-tap-highlight-color:transparent}
-#app{height:100%;max-width:480px;margin:0 auto;display:flex;flex-direction:column}
-main{flex:1;overflow-y:auto;padding:16px 16px 24px;display:flex;flex-direction:column;gap:14px}
+#app{height:100%;max-width:960px;margin:0 auto;display:flex;flex-direction:column}
+main{flex:1;min-height:0;overflow-y:auto;padding:16px 16px 24px;display:flex;flex-direction:column;gap:14px}
+main>*{flex-shrink:0}
+.cols,.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+@media (min-width:680px){main{padding:24px 28px 28px}.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}.solo{width:100%;max-width:520px;margin:0 auto}}
 h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
 button{font-family:inherit;color:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
@@ -84,12 +87,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 nav{flex:none;display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);background:#0e1222;padding-bottom:env(safe-area-inset-bottom)}
 nav button{background:none;border:0;padding:12px 4px 14px;font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:1.5px;color:var(--dim);min-height:52px}
 nav button.on{color:var(--mint)}
+@media (max-width:380px){nav button{letter-spacing:.5px;font-size:14px}}
 .edit{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
 input[type=text],select,textarea{font-family:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:44px;width:100%;min-width:0}
 select{width:auto}
 textarea{min-height:90px;font-size:13px}
-#toast{position:fixed;left:50%;top:18px;transform:translate(-50%,-140%);background:var(--mint);color:var(--bg);font-family:var(--display);font-weight:700;font-size:18px;padding:10px 18px;border-radius:12px;transition:transform .35s ease;z-index:5;max-width:90%;text-align:center}
-#toast.show{transform:translate(-50%,0)}
+#toast{position:fixed;left:50%;top:18px;transform:translate(-50%,-24px);opacity:0;visibility:hidden;background:var(--mint);color:var(--bg);font-family:var(--display);font-weight:700;font-size:18px;padding:10px 18px;border-radius:12px;transition:transform .3s ease,opacity .3s ease,visibility .3s;z-index:5;max-width:90%;text-align:center}
+#toast.show{transform:translate(-50%,0);opacity:1;visibility:visible}
 .note{background:var(--panel2);border-radius:12px;padding:10px 12px;font-size:14px;color:var(--dim)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -281,14 +285,14 @@ function header(){
 }
 
 function renderBattle(){
-  var b=bossInfo(),t=today(),d=S.days[t]||{q:{}},h=header();
+  var b=bossInfo(),t=today(),d=S.days[t]||{q:{}},h='<div class="cols"><div class="col">'+header();
   h+='<div class="card boss'+(b.dead?' dead':'')+'" id="bosscard"><div class="eyebrow">This week\'s boss</div>'+bossSvg(b.color)+
     '<h2>'+esc(b.name)+'</h2>';
   if(b.dead)h+='<p class="small" style="color:var(--mint);margin:8px 0 0">Defeated. A new boss arrives Monday.</p>';
   else h+='<div class="bar hp" style="margin:10px 0 6px"><i style="width:'+Math.round(b.hp/b.max*100)+'%"></i></div>'+
     '<div class="row small dim"><span class="num">HP '+b.hp+' / '+b.max+'</span><span class="num">'+(b.daysLeft===0?'Last day':b.daysLeft+' days left')+'</span></div>'+
     (b.healed?'<p class="small dim" style="margin:8px 0 0">It healed '+b.healed+' HP on days you skipped.</p>':'');
-  h+='</div>';
+  h+='</div></div><div class="col">';
   h+='<div class="row"><span class="eyebrow">Daily quests</span><button type="button" class="ghost" id="btn-edit">'+(editing?'Done':'Edit')+'</button></div>';
   if(editing)h+=renderEditor();
   else{
@@ -303,7 +307,7 @@ function renderBattle(){
     });
     h+='</div><button type="button" class="cta" id="btn-gofocus">Start a focus battle</button>';
   }
-  view.innerHTML=h;
+  view.innerHTML=h+'</div></div>';
 }
 
 function renderEditor(){
@@ -321,7 +325,7 @@ function renderEditor(){
 
 function fmt(ms){var s=Math.max(0,Math.ceil(ms/1000));return pad(Math.floor(s/60))+':'+pad(s%60)}
 function renderFocus(){
-  var h='<div class="top"><span class="brand">FOCUS BATTLE</span></div>',T=S.timer;
+  var h='<div class="col solo"><div class="top"><span class="brand">FOCUS BATTLE</span></div>',T=S.timer;
   if(T){
     var total=T.mins*60000,left=T.end-Date.now(),C=2*Math.PI*104;
     h+='<div class="ring"><svg width="230" height="230" viewBox="0 0 230 230" aria-hidden="true"><circle cx="115" cy="115" r="104" fill="none" stroke="#232a4a" stroke-width="12"/>'+
@@ -338,11 +342,11 @@ function renderFocus(){
     h+='<div class="note">Before you start, turn on Focus or Do Not Disturb on your phone. This app cannot block other apps for you.</div>';
     h+='<button type="button" class="cta mint" id="btn-start">Start '+S.focusMin+' min battle · +'+focusXp(S.lastStat,S.focusMin)+' XP</button>';
   }
-  view.innerHTML=h;
+  view.innerHTML=h+'</div>';
 }
 
 function renderProgress(){
-  var sx=statXp(),t=today(),h='<div class="top"><span class="brand">PROGRESS</span><span class="pill num">LV '+levelInfo(totalXp()).L+'</span></div>';
+  var sx=statXp(),t=today(),h='<div class="cols"><div class="col"><div class="top"><span class="brand">PROGRESS</span><span class="pill num">LV '+levelInfo(totalXp()).L+'</span></div>';
   var sessions=0,k,wins=0;for(k in S.days)sessions+=(S.days[k].f||[]).length;for(k in S.wins)wins++;
   h+='<div class="tiles"><div class="tile"><b class="num">'+streakInfo()+'</b><span>day streak</span></div><div class="tile"><b class="num">'+wins+'</b><span>bosses beaten</span></div><div class="tile"><b class="num">'+sessions+'</b><span>focus battles</span></div></div>';
   h+='<div class="eyebrow">Your stats</div><div class="card" style="display:flex;flex-direction:column;gap:12px">';
@@ -351,7 +355,7 @@ function renderProgress(){
     h+='<div class="stat"><div class="row small"><span>'+STATS[s].n+(STATS[s].main?' <span class="dim">· main</span>':'')+'</span><span class="dim num">LV '+L+' · '+cur+' / 150</span></div>'+
       '<div class="bar xp"><i style="width:'+Math.round(cur/150*100)+'%;'+(STATS[s].main?'':'background:var(--violet);box-shadow:none')+'"></i></div></div>';
   });
-  h+='</div><div class="eyebrow">Last 4 weeks</div><div class="card"><div class="grid28">';
+  h+='</div></div><div class="col"><div class="eyebrow">Last 4 weeks</div><div class="card"><div class="grid28">';
   var first=addDays(mondayOf(t),-21);
   for(var i=0;i<28;i++){var d=addDays(first,i),x=dayXp(d),l=x>=100?3:x>=50?2:x>0?1:0;
     h+='<div class="cell'+(l?' l'+l:'')+(d===t?' today':'')+'" title="'+d+', '+x+' XP"></div>'}
@@ -362,7 +366,7 @@ function renderProgress(){
     '<textarea id="backup" placeholder="Paste a backup code here to restore" aria-label="Backup code"></textarea>'+
     '<button type="button" class="ghost" id="btn-restore">Restore from code</button>'+
     '<button type="button" class="ghost danger" id="btn-reset">'+(resetArmed?'Tap again to erase everything':'Reset all progress')+'</button></div>';
-  view.innerHTML=h;
+  view.innerHTML=h+'</div></div>';
 }
 function syncText(){return STANDALONE?'Progress is saved on this phone only. Copy a backup code now and then, in case the browser data gets cleared.':cloud==='cloud'?'Progress is saved to your Claude account and on this device.':cloud==='error'?'Cloud save is unavailable right now. Progress is saved on this device only.':'Progress is saved on this device.'}
 
